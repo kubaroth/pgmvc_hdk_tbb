@@ -1,0 +1,73 @@
+
+HDK mean value coordinates deformer with TBB.
+
+This projects tests how well different paralization strategies and libraries (TBB, OpenMP) scale scale and impacts throughput. 
+
+The capture node is a rewirte from the ground up of a previous hybrid implementation (HDK/For each sop ) which appeared on OdForce (see the references) 
+
+References:
+https://www.cse.wustl.edu/~taoju/research/meanvalue.pdf
+https://forums.odforce.net/topic/8877-gmvc-general-mean-value-coordinates/?page=2
+
+
+#+BEGIN_SRC 
+pushd ~/hfs18.0.416/
+export HFS=$(pwd)  # don't source ./houdini_setup as it messes up CMake configuration
+popd
+
+mkdir  __build
+cd  __build
+
+env_gcc650  # building with more 7.5.0 gcc leaks while debugging in gdb
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-g -O0"
+make 
+
+cp *.so ~/houdini18/dso
+
+#+END_SRC
+
+# test in Houdini
+source  ~/hfs18.0.416/houdini_setup
+run -foreground -n  $HOME/PRJ/pgmvc/example.hipnc
+
+# debugging
+gdb bin/hmaster-bin 
+run -foreground -n  $HOME/PRJ/pgmvc/example.hipnc
+b SOP_PGMVC_captAtt::cookMySop
+
+
+# example .cquery setup
+
+#+BEGIN_SRC 
+%clang
+
+-I$HOME/hfs18.0.416/toolkit/include
+
+#+END_SRC
+
+TODO:
+- finish 'sparseData' implementation (sparse weights)
+  - populate blob with weights distribution
+  - retrive weights on deform node
+  - rename SparseData to SparseWeights and update interface
+  - compare memory with capture node against 'dense' version
+
+- create benchamark for 'dense' attribute for 1000, 4000, 10000 
+  
+| i5-2520M CPU @ 2.50GHz | outer loop | inner loop |
+|           10000 points |            |            |
+|------------------------+------------+------------|
+|                   19.8 | serial     | serial     |
+|                   12.0 | tbb        | serial     |
+|                    8.7 | tbb        | serial     |
+|                   10.5 | openmp     | tbb        |
+|                    8.3 | tbb        | tbb        |
+
+
+Some vectorization flags:
+#+BEGIN_SRC 
+#pragma GCC optimize("O3","unroll-loops","omit-frame-pointer","inline") //Optimization flags
+#pragma GCC option("arch=native","tune=native","no-zero-upper") //Enable AVX
+#pragma GCC target("avx")  //Enable AVX
+#include <x86intrin.h> //AVX/SSE Extensions
+#+END_SRC
