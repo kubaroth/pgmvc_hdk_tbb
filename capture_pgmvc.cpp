@@ -10,7 +10,10 @@
 #include<GEO/GEO_Vertex.h>
 #include<GEO/GEO_AttributeHandle.h>  // this is deprecated anyway, but still available
 
+#include<GA/GA_AIFBlob.h>
+
 #include "capture_pgmvc.h"
+#include "sparse_data.h"
 
 #include <cassert>
 #include <vector>
@@ -253,9 +256,27 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
 
     int cageNumPoints = cage->getNumPoints();
 
-    GA_RWHandleF weights_gah(gdp->findFloatTuple(GA_ATTRIB_POINT, "PGMVCweights", cageNumPoints));
-    if (!weights_gah.isValid()) {
-        weights_gah = GA_RWHandleF(gdp->addFloatTuple(GA_ATTRIB_POINT, "PGMVCweights", cageNumPoints));
+    // GA_RWHandleF weights_gah(gdp->findFloatTuple(GA_ATTRIB_POINT, "PGMVCweights", cageNumPoints));
+    // if (!weights_gah.isValid()) {
+    //     weights_gah = GA_RWHandleF(gdp->addFloatTuple(GA_ATTRIB_POINT, "PGMVCweights", cageNumPoints));
+    // }
+
+    GA_RWAttributeRef blob_gah = gdp->createAttribute(GA_ATTRIB_POINT,
+                                                      GA_SCOPE_PUBLIC,
+                                                      "blob",
+                                                      nullptr /*create args*/,
+                                                      nullptr /*attribute options*/,
+                                                      "blob");
+
+    GA_Attribute        *a = blob_gah.getAttribute();
+    const GA_AIFBlob    *aif = a->getAIFBlob();
+
+    for (auto pt_index = 0; pt_index<gdp->getNumPoints(); ++pt_index){
+        GA_Offset ptoff = gdp->pointOffset(pt_index);
+        auto aa = new SparseData();
+        aa->weights[pt_index] = pt_index;
+        GA_BlobRef      strblob(aa);
+        aif->setBlob(a, strblob, ptoff);
     }
 
     std::vector<UT_Vector3> sphere_samples(numSamples, UT_Vector3(0,0,0));
@@ -359,9 +380,9 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
         }
 
         // set PGMVCweights attribute;
-        for (auto i=0; i< cageNumPoints; ++i){
-            weights_gah.set (ptoff, i, captureweights[i] );
-        }
+        // for (auto i=0; i< cageNumPoints; ++i){
+        //     weights_gah.set (ptoff, i, captureweights[i] );
+        // }
 
     // } // end of Option 3 - OpenMP
     // });  // end of Option 2 - TBB - parallel_for point offsets

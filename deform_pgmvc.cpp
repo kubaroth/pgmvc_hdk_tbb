@@ -15,8 +15,10 @@
 #include <GEO/GEO_Vertex.h>
 
 #include <SYS/SYS_Math.h>
+#include <GA/GA_AIFBlob.h>
 
 #include "deform_pgmvc.h"
+#include "sparse_data.h"
 
 void
 newSopOperator( OP_OperatorTable *table )
@@ -115,27 +117,54 @@ SOP_PGMVC_deform::cookMySop( OP_Context &context )
 
     GA_RWHandleF wCapt_gah(gdp, GA_ATTRIB_POINT, "PGMVCweights");
 
-    if (!wCapt_gah.isValid()) {
-        addError(SOP_ERR_INVALID_SRC , "input 1 is not captured");
-        unlockInputs();
-        return error();
+    // if (!wCapt_gah.isValid()) {
+    //     addError(SOP_ERR_INVALID_SRC , "input 1 is not captured");
+    //     unlockInputs();
+    //     return error();
+    // }
+
+    const GA_Attribute * a = gdp->findAttribute(GA_ATTRIB_POINT, GA_SCOPE_PUBLIC, "blob");
+    if (a){
+        const GA_AIFBlob    *aif = a->getAIFBlob();
+
+
+        for (auto pt_index = 0; pt_index<gdp->getNumPoints(); ++pt_index){
+            GA_Offset ptoff = gdp->pointOffset(pt_index);
+            GA_BlobRef      blob = aif->getBlob(a, ptoff);
+            if (blob) {
+                SparseData *bb = static_cast<SparseData*>(&(*blob));
+                for (const auto i : bb->weights){
+                    std::cout << i.first << " " << i.second << std::endl;
+                }
+                std::cout << "---" << std::endl;
+            }
+        }
+
     }
 
-    GA_Offset cage_off;
-    GA_FOR_ALL_PTOFF(gdp, off) {
-        new_pos = UT_Vector3(0,0,0);
+    // for (auto pt_index = 0; pt_index<gdp->getNumPoints(); ++pt_index){
+    //     GA_Offset ptoff = gdp->pointOffset(pt_index);
+    //     GA_BlobRef      strblob = aif->getBlob(a, ptoff);
+        // if (strblob) { ... }
+    // }
+
+    
+
+    // GA_Offset cage_off;
+    // GA_FOR_ALL_PTOFF(gdp, off) {
+    //     new_pos = UT_Vector3(0,0,0);
         
-        i = 0;
-        GA_FOR_ALL_PTOFF(deform, cage_off)  {
-            weight = wCapt_gah.get(off, i);
-            if (weight > 0)  {
-                pos = deform->getPos3(cage_off);
-                new_pos += weight * pos;
-            }
-            i++;
-        }
-        gdp->setPos3(off, new_pos);
-    }
+    //     i = 0;
+    //     GA_FOR_ALL_PTOFF(deform, cage_off)  {
+    //         weight = wCapt_gah.get(off, i);
+    //         if (weight > 0)  {
+    //             pos = deform->getPos3(cage_off);
+    //             new_pos += weight * pos;
+    //         }
+    //         i++;
+    //     }
+    //     gdp->setPos3(off, new_pos);
+    // }
 
     if (DELATT()) {
         if (wCapt_gah.isValid()) {
