@@ -49,6 +49,7 @@ static PRM_Name names[] =
 {
     PRM_Name( "thres", "Threshold" ),
     PRM_Name( "samples", "Sphere samples"),
+    PRM_Name( "sparseweight", "Sparse weights"),
     PRM_Name( 0 )
 };
 
@@ -56,12 +57,14 @@ static PRM_Range PRMsmallRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 0.01);
 static PRM_Range PRMsampleRange(PRM_RANGE_RESTRICTED, 1, PRM_RANGE_UI, 16);
 static PRM_Default maxsamplDefault(16,"");
 static PRM_Default small(0.0001,"");
+static PRM_Default zero(0,"");
 
 PRM_Template
 SOP_capture_pgmvc::myTemplateList[] =
 {
     PRM_Template(PRM_FLT_J, 1, &names[0], &small, 0, &PRMsmallRange),
     PRM_Template(PRM_INT_J, 1, &names[1], &maxsamplDefault, 0, &PRMsampleRange),
+    PRM_Template(PRM_TOGGLE_J, 1, &names[2], &zero, 0),
     PRM_Template(),
 };
 
@@ -250,34 +253,34 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
 
     int numSamples = SAMPLES(now);
     tolerance = THRES(now);
+    bool  useSpareWeight = SPARSEWEIGHTS(now);
 
     float area = 4 * M_PI;
     area /= numSamples;
 
     int cageNumPoints = cage->getNumPoints();
 
-    // GA_RWHandleF weights_gah(gdp->findFloatTuple(GA_ATTRIB_POINT, "PGMVCweights", cageNumPoints));
-    // if (!weights_gah.isValid()) {
-    //     weights_gah = GA_RWHandleF(gdp->addFloatTuple(GA_ATTRIB_POINT, "PGMVCweights", cageNumPoints));
-    // }
+    GA_RWAttributeRef blob_gah;
+    GA_Attribute *blob_attr;
+    const GA_AIFBlob *aif;
+    GA_RWHandleF weights_gah(gdp->findFloatTuple(GA_ATTRIB_POINT, "PGMVCweights", cageNumPoints));
 
-    GA_RWAttributeRef blob_gah = gdp->createAttribute(GA_ATTRIB_POINT,
-                                                      GA_SCOPE_PUBLIC,
-                                                      "blob",
-                                                      nullptr /*create args*/,
-                                                      nullptr /*attribute options*/,
-                                                      "blob");
-
-    GA_Attribute        *a = blob_gah.getAttribute();
-    const GA_AIFBlob    *aif = a->getAIFBlob();
-
-    for (auto pt_index = 0; pt_index<gdp->getNumPoints(); ++pt_index){
-        GA_Offset ptoff = gdp->pointOffset(pt_index);
-        auto aa = new SparseData();
-        aa->weights[pt_index] = pt_index;
-        GA_BlobRef      strblob(aa);
-        aif->setBlob(a, strblob, ptoff);
+    if ((!weights_gah.isValid()) && (useSpareWeight == 0))  {
+        weights_gah = GA_RWHandleF(gdp->addFloatTuple(GA_ATTRIB_POINT, "PGMVCweights", cageNumPoints));
     }
+
+    else {
+        blob_gah = gdp->createAttribute(GA_ATTRIB_POINT,
+                                        GA_SCOPE_PUBLIC,
+                                        "blob",
+                                        nullptr /*create args*/,
+                                        nullptr /*attribute options*/,
+                                        "blob");
+        blob_attr = blob_gah.getAttribute();
+        aif = blob_attr->getAIFBlob();
+    }
+
+
 
     std::vector<UT_Vector3> sphere_samples(numSamples, UT_Vector3(0,0,0));
     UT_BoundingBox bbox;
@@ -378,11 +381,23 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
                 }
             }
         }
-
-        // set PGMVCweights attribute;
-        // for (auto i=0; i< cageNumPoints; ++i){
-        //     weights_gah.set (ptoff, i, captureweights[i] );
-        // }
+        // Set regular attribute weights
+        if ((weights_gah.isValid()) && (useSpareWeight == 0)){
+            for (auto i=0; i< cageNumPoints; ++i){
+                weights_gah.set (ptoff, i, captureweights[i] );
+            }
+        }
+        // Set blob value with sparse weights
+        else{
+            auto aa = new SparseData();
+            for (auto i=0; i<cageNumPoints; ++i){
+                if (captureweights[i] > 0){
+                    aa->weights[i] = captureweights[i];
+                }
+            }
+            GA_BlobRef      strblob(aa);
+            aif->setBlob(blob_attr, strblob, ptoff);  // TODO: this may require lock?
+        }
 
     // } // end of Option 3 - OpenMP
     // });  // end of Option 2 - TBB - parallel_for point offsets

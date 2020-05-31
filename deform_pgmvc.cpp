@@ -117,55 +117,57 @@ SOP_PGMVC_deform::cookMySop( OP_Context &context )
 
     GA_RWHandleF wCapt_gah(gdp, GA_ATTRIB_POINT, "PGMVCweights");
 
-    // if (!wCapt_gah.isValid()) {
-    //     addError(SOP_ERR_INVALID_SRC , "input 1 is not captured");
-    //     unlockInputs();
-    //     return error();
-    // }
-
+    // Sparse version
     const GA_Attribute * a = gdp->findAttribute(GA_ATTRIB_POINT, GA_SCOPE_PUBLIC, "blob");
+
     if (a){
+
         const GA_AIFBlob    *aif = a->getAIFBlob();
-
-
-        for (auto pt_index = 0; pt_index<gdp->getNumPoints(); ++pt_index){
-            GA_Offset ptoff = gdp->pointOffset(pt_index);
-            GA_BlobRef      blob = aif->getBlob(a, ptoff);
+        GA_Offset cage_off;
+        GA_FOR_ALL_PTOFF(gdp, off) {
+            new_pos = UT_Vector3(0,0,0);
+            GA_BlobRef      blob = aif->getBlob(a, off);
             if (blob) {
                 SparseData *bb = static_cast<SparseData*>(&(*blob));
+                // std::cout << "point index: "<< gdp->pointIndex(off) << std::endl; 
                 for (const auto i : bb->weights){
-                    std::cout << i.first << " " << i.second << std::endl;
+                    // std::cout << "cage point: "<< i.first << " " << i.second << std::endl;
+                    weight = i.second;
+                    cage_off = deform->pointOffset(i.first);
+                    pos = deform->getPos3(cage_off);
+                    new_pos += weight * pos;
                 }
-                std::cout << "---" << std::endl;
+                // std::cout << "---" << std::endl;
             }
+            gdp->setPos3(off, new_pos);
+        }
+    }
+    
+    else {
+
+        if(!wCapt_gah.isValid()) {
+            addError(SOP_ERR_INVALID_SRC , "input 1 is not captured");
+            unlockInputs();
+            return error();
         }
 
-    }
-
-    // for (auto pt_index = 0; pt_index<gdp->getNumPoints(); ++pt_index){
-    //     GA_Offset ptoff = gdp->pointOffset(pt_index);
-    //     GA_BlobRef      strblob = aif->getBlob(a, ptoff);
-        // if (strblob) { ... }
-    // }
-
-    
-
-    // GA_Offset cage_off;
-    // GA_FOR_ALL_PTOFF(gdp, off) {
-    //     new_pos = UT_Vector3(0,0,0);
+        GA_Offset cage_off;
+        GA_FOR_ALL_PTOFF(gdp, off) {
+            new_pos = UT_Vector3(0,0,0);
         
-    //     i = 0;
-    //     GA_FOR_ALL_PTOFF(deform, cage_off)  {
-    //         weight = wCapt_gah.get(off, i);
-    //         if (weight > 0)  {
-    //             pos = deform->getPos3(cage_off);
-    //             new_pos += weight * pos;
-    //         }
-    //         i++;
-    //     }
-    //     gdp->setPos3(off, new_pos);
-    // }
-
+            i = 0;
+            GA_FOR_ALL_PTOFF(deform, cage_off)  {
+                weight = wCapt_gah.get(off, i);
+                if (weight > 0)  {
+                    pos = deform->getPos3(cage_off);
+                    new_pos += weight * pos;
+                }
+                i++;
+            }
+            gdp->setPos3(off, new_pos);
+        }
+    }
+    
     if (DELATT()) {
         if (wCapt_gah.isValid()) {
             gdp->destroyPointAttrib("PGMVCweights");

@@ -23,6 +23,7 @@ class SOP_capture_pgmvc : public SOP_Node
 
     float THRES(float t)       { return evalFloat(0, 0, t); }
     int   SAMPLES(float t)     { return evalInt(1 /*index*/, 0, t); } 
+    int   SPARSEWEIGHTS(int t)     { return evalInt(2, 0, t); } 
 
     void F(UT_Vector3, const GEO_Primitive*, float, std::vector<float>&);
 
