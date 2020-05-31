@@ -1,14 +1,15 @@
 
-HDK mean value coordinates deformer with TBB.
+HDK version of Mean Malue Coordinates deformer with TBB.
 
 This projects tests how well different paralization strategies and libraries (TBB, OpenMP) scale scale and impacts throughput. 
 
-The capture node is a rewirte from the ground up of a previous hybrid implementation (HDK/For each sop ) which appeared on OdForce (see the references) 
+The capture node is a rewrite of a previous hybrid implementation (HDK/For each sop ) found on OdForce (see the references) 
 
 References:
-https://www.cse.wustl.edu/~taoju/research/meanvalue.pdf
-https://forums.odforce.net/topic/8877-gmvc-general-mean-value-coordinates/?page=2
+- https://www.cse.wustl.edu/~taoju/research/meanvalue.pdf
+- https://forums.odforce.net/topic/8877-gmvc-general-mean-value-coordinates/?page=2
 
+* Build
 
 #+BEGIN_SRC 
 pushd ~/hfs18.0.416/
@@ -26,17 +27,21 @@ cp *.so ~/houdini18/dso
 
 #+END_SRC
 
-# test in Houdini
+* Test
+#+BEGIN_SRC 
 source  ~/hfs18.0.416/houdini_setup
 run -foreground -n  $HOME/PRJ/pgmvc/example.hipnc
+#+END_SRC
 
-# debugging
+* Debug
+#+BEGIN_SRC 
 gdb bin/hmaster-bin 
 run -foreground -n  $HOME/PRJ/pgmvc/example.hipnc
 b SOP_PGMVC_captAtt::cookMySop
+#+END_SRC
 
 
-# example .cquery setup
+* example .cquery setup
 
 #+BEGIN_SRC 
 %clang
@@ -45,14 +50,14 @@ b SOP_PGMVC_captAtt::cookMySop
 
 #+END_SRC
 
-TODO:
+* TODO:
 - finish 'sparseData' implementation (sparse weights)
   - populate blob with weights distribution
   - retrive weights on deform node
   - rename SparseData to SparseWeights and update interface
   - compare memory with capture node against 'dense' version
 
-- create benchamark for 'dense' attribute for 1000, 4000, 10000 
+* Benchmark
   
 | i5-2520M CPU @ 2.50GHz | outer loop | inner loop |
 |           10000 points |            |            |
@@ -64,6 +69,7 @@ TODO:
 |                    8.3 | tbb        | tbb        |
 
 
+* Other 
 Some vectorization flags:
 #+BEGIN_SRC 
 #pragma GCC optimize("O3","unroll-loops","omit-frame-pointer","inline") //Optimization flags
