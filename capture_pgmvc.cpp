@@ -397,6 +397,7 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
             }
             GA_BlobRef      strblob(aa);
             aif->setBlob(blob_attr, strblob, ptoff);  // TODO: this may require lock?
+            aif->compactStorage (blob_attr);
         }
 
     // } // end of Option 3 - OpenMP
