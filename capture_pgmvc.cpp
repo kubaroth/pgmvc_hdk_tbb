@@ -297,14 +297,14 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
     //     GA_Offset ptoff = gdp->pointOffset(pt_index);
 
     // Option 2 - TBB
-    std::vector<GA_Size> pt_indices(gdp->getNumPoints());
-    std::iota(pt_indices.begin(), pt_indices.end(), 0);
-    tbb::parallel_for( size_t(0), pt_indices.size(), [&]( size_t pt_index ) {
-            GA_Offset ptoff = gdp->pointOffset(pt_index);
+    // std::vector<GA_Size> pt_indices(gdp->getNumPoints());
+    // std::iota(pt_indices.begin(), pt_indices.end(), 0);
+    // tbb::parallel_for( size_t(0), pt_indices.size(), [&]( size_t pt_index ) {
+    //         GA_Offset ptoff = gdp->pointOffset(pt_index);
 
     // Option 1 - serial
-    // GA_Offset ptoff;
-    // GA_FOR_ALL_PTOFF(gdp, ptoff){
+    GA_Offset ptoff;
+    GA_FOR_ALL_PTOFF(gdp, ptoff){
 
         std::vector<float> captureweights(cageNumPoints, 0.0);
 
@@ -313,11 +313,11 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
         int sampleIndex = 0;
 
         // Option 2 - TBB inner loop
-        tbb::parallel_for( size_t(0), sphere_samples.size(), [&]( size_t i ) {
-            auto direction = sphere_samples[i];
+        // tbb::parallel_for( size_t(0), sphere_samples.size(), [&]( size_t i ) {
+        //     auto direction = sphere_samples[i];
 
         // Option 1 - serial inner loop
-        // for (const auto & direction : sphere_samples){
+        for (const auto & direction : sphere_samples){
 
             const GEO_Primitive *prim;            
             UT_Vector3 meshP =  gdp->getPos3(ptoff);     // <------ get pos from mesh
@@ -341,7 +341,7 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
                     );
 
                 if (hit == 1){
-                    // std::cout << "sample:" << sampleIndex << " hit prim Number: " << prim->getMapIndex() << std::endl;
+                    std::cout << "sample:" << sampleIndex << " hit prim Number: " << prim->getMapIndex() << std::endl;
 
                     // preview intersection points
                     // GA_Offset off = gdp->appendPoint();
@@ -362,13 +362,14 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
                         captureweights[cage_index] += weight;
                         total_captureweights += weight;
                     }
+                    break;
                 } // end of hit
             }  // end of prim loop
 
             sampleIndex++;  // not used
 
-         }); // end of Option 2 - TBB - samples
-        // } // end of Option 1 - serial inner loop - samples
+         // }); // end of Option 2 - TBB - samples
+        } // end of Option 1 - serial inner loop - samples
 
         if (total_captureweights > tolerance){
             for (auto i = 0; i<cageNumPoints; ++i){
@@ -401,8 +402,8 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
         }
 
     // } // end of Option 3 - OpenMP
-    });  // end of Option 2 - TBB - parallel_for point offsets
-    // } // end of Option 1 - serial - GA_FOR_ALL_PTOFF
+    // });  // end of Option 2 - TBB - parallel_for point offsets
+    } // end of Option 1 - serial - GA_FOR_ALL_PTOFF
     
     unlockInputs();
 
