@@ -12,18 +12,9 @@ References:
 * Build
 
 #+BEGIN_SRC 
-pushd ~/hfs18.0.416/
-export HFS=$(pwd)  # don't source ./houdini_setup as it messes up CMake configuration
-popd
-
-mkdir  __build
-cd  __build
-
-env_gcc650  # building with more 7.5.0 gcc leaks while debugging in gdb
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-g -O0"
-make 
-
-cp *.so ~/houdini18/dso
+mkdir -p __build && cd "$_"
+cmake .. -DCMAKE_INSTALL_PREFIX=~/houdini18.0/
+make install
 
 #+END_SRC
 
@@ -35,6 +26,9 @@ run -foreground -n  $HOME/PRJ/pgmvc/example.hipnc
 
 * Debug
 #+BEGIN_SRC 
+env_gcc650  # building with more 7.5.0 gcc leaks while debugging in gdb
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-g -O0"
+
 gdb bin/hmaster-bin 
 run -foreground -n  $HOME/PRJ/pgmvc/example.hipnc
 b SOP_PGMVC_captAtt::cookMySop

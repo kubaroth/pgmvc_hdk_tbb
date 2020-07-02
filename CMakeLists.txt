@@ -2,9 +2,11 @@ cmake_minimum_required(VERSION 3.13.0)
 
 project(pgmvc)
 
-set(HOUDINI_VERSION_MAJOR 17)
-set(HOUDINI_VERSION_MINOR 5)
-set(HOUDINI_VERSION_PATCH 425)
+set(HFS $ENV{HOME}/hfs18.0.416)
+
+set(HOUDINI_VERSION_MAJOR 18)
+set(HOUDINI_VERSION_MINOR 0)
+set(HOUDINI_VERSION_PATCH 416)
 
 message ("HOUDINI VERSION: " $ENV{HOUDINI_VERSION_MAJOR}.$ENV{HOUDINI_VERSION_MINOR}.$ENV{HOUDINI_VERSION_PATCH})
 set (HOUDINI_VERSION $ENV{HOUDINI_VERSION_MAJOR}.$ENV{HOUDINI_VERSION_MINOR}.$ENV{HOUDINI_VERSION_PATCH} )
@@ -58,7 +60,7 @@ set(HOUDINI_LIBRARIES
        )
 
 set(CMAKE_CXX_FLAGS "-fopenmp")
-     
+
 add_library(${PROJECT_NAME}_capture_all SHARED
   capture_pgmvc.cpp
   )
@@ -68,11 +70,16 @@ add_library(${PROJECT_NAME}_deform_all SHARED
   )
 
 
-target_include_directories(${PROJECT_NAME}_capture_all BEFORE PUBLIC $ENV{HFS}/toolkit/include/)
-target_include_directories(${PROJECT_NAME}_deform_all BEFORE PUBLIC $ENV{HFS}/toolkit/include/)
+target_include_directories(${PROJECT_NAME}_capture_all BEFORE PUBLIC ${HFS}/toolkit/include/)
+target_include_directories(${PROJECT_NAME}_deform_all BEFORE PUBLIC ${HFS}/toolkit/include/)
 
-target_link_directories(${PROJECT_NAME}_capture_all BEFORE PUBLIC $ENV{HFS}/dsolib)
-target_link_directories(${PROJECT_NAME}_deform_all BEFORE PUBLIC $ENV{HFS}/dsolib)
+target_link_directories(${PROJECT_NAME}_capture_all BEFORE PUBLIC ${HFS}/dsolib)
+target_link_directories(${PROJECT_NAME}_deform_all BEFORE PUBLIC ${HFS}/dsolib)
 
 target_link_libraries(${PROJECT_NAME}_capture_all ${HOUDINI_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_deform_all ${HOUDINI_LIBRARIES})
+
+install(TARGETS
+  ${PROJECT_NAME}_capture_all
+  ${PROJECT_NAME}_deform_all
+  DESTINATION dso)
