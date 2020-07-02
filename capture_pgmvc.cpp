@@ -4,6 +4,7 @@
 #include <OP/OP_OperatorTable.h>
 #include <UT/UT_Interrupt.h>
 #include <SOP/SOP_Node.h>
+#include <GU/GU_RayIntersect.h>
 
 #include <SYS/SYS_Math.h>
 
@@ -319,14 +320,31 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
         // Option 1 - serial inner loop
         for (const auto & direction : sphere_samples){
 
-            const GEO_Primitive *prim;            
+            const GEO_Primitive *prim;
             UT_Vector3 meshP =  gdp->getPos3(ptoff);     // <------ get pos from mesh
-            GA_FOR_ALL_PRIMITIVES  (cage, prim) {
+
+            // Testing for intersection
+            GU_RayInfo hitInfo; // default to find closest
+            GU_RayIntersect rayIntersect(cage);
+
+            int numhit = rayIntersect.sendRay(meshP - direction*1E-6F, /* move inward a bit*/
+                                              direction,
+                                              hitInfo);
+
+            if (numhit){
+                GA_Index primNum= cage->primitiveIndex(hitInfo.myPrim.offset());
+                //std::cout << "sample:" << sampleIndex << " primNum: " << primNum  << " UVW: "<< hitInfo.myU << " "<< hitInfo.myU << " " << hitInfo.myW <<  std::endl;
+
+                // TODO
+                // with the lack of easier way to find the hit position in worlds spcace
+                // repeat the intesection with the given polygon.
                 float distance = 0;
                 UT_Vector3 hitP;
                 UT_Vector3 nml;
                 float u;
                 float v;
+
+                const GEO_Primitive *prim = cage->getGEOPrimitive(hitInfo.myPrim.offset());
                 int hit = prim->intersectRay( meshP - direction*1E-6F, /* move inward a bit*/
                                               direction,
                                               1E17F,  /*tmax*/
@@ -340,9 +358,7 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
                                               1  /*ignoretrim*/
                     );
 
-                if (hit == 1){
-                    std::cout << "sample:" << sampleIndex << " hit prim Number: " << prim->getMapIndex() << std::endl;
-
+                if (hit){
                     // preview intersection points
                     // GA_Offset off = gdp->appendPoint();
                     // gdp->setPos3(off, hitP);
@@ -355,16 +371,15 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
                     std::vector<float> sample_weights;
                     F(hitP, prim, distScale, sample_weights);  // cage is implicit
 
-                    // for each vertex in ppolyon get point index
+                    // for each vertex in polygon get point index
                     for (auto i=0; i<prim->getVertexCount(); ++i){
                         GA_Index cage_index = prim->getPointIndex(i);
                         auto weight = sample_weights[i];
                         captureweights[cage_index] += weight;
                         total_captureweights += weight;
                     }
-                    break;
                 } // end of hit
-            }  // end of prim loop
+            }
 
             sampleIndex++;  // not used
 
