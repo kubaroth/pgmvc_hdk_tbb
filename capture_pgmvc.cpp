@@ -4,6 +4,7 @@
 #include <OP/OP_OperatorTable.h>
 #include <UT/UT_Interrupt.h>
 #include <SOP/SOP_Node.h>
+#include <GU/GU_RayIntersect.h>
 
 #include <SYS/SYS_Math.h>
 
