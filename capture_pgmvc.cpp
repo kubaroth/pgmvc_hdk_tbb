@@ -290,6 +290,9 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
 
     // showSphere(gdp, sphere_samples);
 
+    // 1 object is enought to handle all threads
+    // Very expensive to construct as it builds BVH
+    GU_RayIntersect rayIntersect(cage);
 
     // Option 3 - OpenMP
     // #pragma omp parallel for ordered schedule(dynamic)
@@ -313,63 +316,55 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
         int sampleIndex = 0;
 
         // Option 2 - TBB inner loop
-        // tbb::parallel_for( size_t(0), sphere_samples.size(), [&]( size_t i ) {
-        //     auto direction = sphere_samples[i];
+        tbb::parallel_for( size_t(0), sphere_samples.size(), [&]( size_t i ) {
+            auto direction = sphere_samples[i];
 
         // Option 1 - serial inner loop
-        for (const auto & direction : sphere_samples){
+        // for (const auto & direction : sphere_samples){
 
             const GEO_Primitive *prim;            
             UT_Vector3 meshP =  gdp->getPos3(ptoff);     // <------ get pos from mesh
-            GA_FOR_ALL_PRIMITIVES  (cage, prim) {
-                float distance = 0;
-                UT_Vector3 hitP;
-                UT_Vector3 nml;
-                float u;
-                float v;
-                int hit = prim->intersectRay( meshP - direction*1E-6F, /* move inward a bit*/
+
+            // Testing for intersection
+            GU_RayInfo hitInfo; // defaulted to find closest
+            int numhit = rayIntersect.sendRay(meshP - direction*1E-6F, /* move inward a bit*/
                                               direction,
-                                              1E17F,  /*tmax*/
-                                              1E-12F, /*tol*/
-                                              &distance,
-                                              &hitP, /*projected point*/
-                                              &nml,
-                                              0,  /*accurate*/
-                                              &u,
-                                              &v,
-                                              1  /*ignoretrim*/
-                    );
+                                              hitInfo);
 
-                if (hit == 1){
-                    // std::cout << "sample:" << sampleIndex << " hit prim Number: " << prim->getMapIndex() << std::endl;
+            if (numhit){
+                GA_Index primNum= cage->primitiveIndex(hitInfo.myPrim.offset());
+                // std::cout << "sample:" << sampleIndex << " primNum: " << primNum  << " UVW: "<< hitInfo.myU << " "<< hitInfo.myU << " " << hitInfo.myW <<  std::endl;
+                const GEO_Primitive *prim = cage->getGEOPrimitive(hitInfo.myPrim.offset());
 
-                    // preview intersection points
-                    // GA_Offset off = gdp->appendPoint();
-                    // gdp->setPos3(off, hitP);
+                UT_Vector4 pos;
+                prim->evaluateInteriorPoint(pos, hitInfo.myU, hitInfo.myV, hitInfo.myW);
+                UT_Vector3 hitP(pos);
 
-                    float hitDist = distance;
-                    hitDist = std::max<float>(tolerance, hitDist);
-                    float distScale = (1.0/hitDist) * area;
+                // preview intersection points
+                // GA_Offset off = gdp->appendPoint();
+                // gdp->setPos3(off, hitP);
 
-                    // sample_weights
-                    std::vector<float> sample_weights;
-                    F(hitP, prim, distScale, sample_weights);  // cage is implicit
+                float hitDist = (hitP - meshP).length();
+                hitDist = std::max<float>(tolerance, hitDist);
+                float distScale = (1.0/hitDist) * area;
 
-                    // for each vertex in ppolyon get point index
-                    for (auto i=0; i<prim->getVertexCount(); ++i){
-                        GA_Index cage_index = prim->getPointIndex(i);
-                        auto weight = sample_weights[i];
-                        captureweights[cage_index] += weight;
-                        total_captureweights += weight;
-                    }
-                    break;
-                } // end of hit
-            }  // end of prim loop
+                // sample_weights
+                std::vector<float> sample_weights;
+                F(hitP, prim, distScale, sample_weights);  // cage is implicit
+
+                // for each vertex in polygon get point index
+                for (auto i=0; i<prim->getVertexCount(); ++i){
+                    GA_Index cage_index = prim->getPointIndex(i);
+                    auto weight = sample_weights[i];
+                    captureweights[cage_index] += weight;
+                    total_captureweights += weight;
+                }
+            }
 
             sampleIndex++;  // not used
 
-         // }); // end of Option 2 - TBB - samples
-        } // end of Option 1 - serial inner loop - samples
+         }); // end of Option 2 - TBB - samples
+        // } // end of Option 1 - serial inner loop - samples
 
         if (total_captureweights > tolerance){
             for (auto i = 0; i<cageNumPoints; ++i){
@@ -404,7 +399,7 @@ SOP_capture_pgmvc::cookMySop( OP_Context &context )
     // } // end of Option 3 - OpenMP
     });  // end of Option 2 - TBB - parallel_for point offsets
     // } // end of Option 1 - serial - GA_FOR_ALL_PTOFF
-    
+
     unlockInputs();
 
     return error();
