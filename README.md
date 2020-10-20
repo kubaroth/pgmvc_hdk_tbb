@@ -1,7 +1,7 @@
 
 # HDK version of Mean Value Coordinates deformer with TBB.
 
-[![demo1 - workflow](./images/demo1.png)](./images/demo1.mp4)
+[![demo1 - workflow](./images/demo1.png)](https://kubaroth.github.io/pgmvc_hdk_tbb/images/demo1.mp4)
 
 This projects tests how well different paralization strategies and libraries (TBB, OpenMP) scale scale and impacts throughput. 
 
